@@ -16,6 +16,9 @@
       const fragment = window.location.hash; // : #test
       alert("Fragment  URL:\n" + (fragment || "no fragment"));
     }
+    window.onload = function () {
+      document.getElementById("fragmentBtn").click();
+    };
   </script>
 </body>
 </html>
