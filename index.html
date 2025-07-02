@@ -8,5 +8,14 @@
 <body>
   <h1>Justrideaghost.</h1>
   <p>test GitHub Pages :)</p>
+  <h1>test Fragment</h1>
+  <button onclick="showFragment()">نمایش Fragment</button>
+
+  <script>
+    function showFragment() {
+      const fragment = window.location.hash; // : #test
+      alert("Fragment  URL:\n" + (fragment || "no fragment"));
+    }
+  </script>
 </body>
 </html>
