@@ -1,24 +1,269 @@
-<!-- index.html -->
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en" dir="ltr">
 <head>
-  <meta charset="UTF-8">
-  <title>personal website</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TOTP Generator (HTML/JS)</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#121a33; --text:#e8ecf1; --muted:#9fb0c3; --accent:#6dd3fb; }
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Vazirmatn",Tahoma}
+    body{margin:0;background:linear-gradient(180deg,#0b1020,#0e1630);color:var(--text);min-height:100vh;display:grid;place-items:center;padding:24px}
+    .card{width:min(900px,100%);background:var(--panel);border:1px solid #223053;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:20px}
+    h1{margin:0 0 10px;font-weight:800;font-size:24px;letter-spacing:.3px}
+    p.desc{margin-top:0;color:var(--muted);font-size:14px}
+    .grid{display:grid;gap:12px;grid-template-columns:repeat(12,1fr)}
+    .col-12{grid-column:span 12}
+    .col-6{grid-column:span 12}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    @media(min-width:760px){.col-6{grid-column:span 6}}
+    label{font-size:12px;color:var(--muted)}
+    input,select,button,textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #2a3b60;background:#0f1630;color:var(--text);outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(109,211,251,.15)}
+    button{cursor:pointer;background:linear-gradient(90deg,#34a3ff,#6dd3fb);border:none;color:#041224;font-weight:800}
+    button.ghost{background:transparent;border:1px solid #2a3b60;color:var(--text)}
+    .code{font-size:40px;letter-spacing:4px;font-weight:900;direction:ltr}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#0b1228;border:1px solid #203055;color:var(--muted);font-size:12px}
+    .list{display:grid;gap:8px}
+    .list .item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#0f1733;border:1px solid #223053;border-radius:12px}
+    .hr{height:1px;background:#1a2744;margin:16px 0}
+  </style>
 </head>
 <body>
-  <h1>Justrideaghost.</h1>
-  <p>  ...  </p>
-  <h1>poc</h1>
-  <button id="fragmentBtn" onclick="showFragment()"> Fragment</button>
+  <div class="card">
+    <h1>TOTP Generator (Single HTML File)</h1>
+    <p class="desc">No external libraries. Supports SHA-1 / SHA-256 / SHA-512, digit length and time period configuration. You can enter <span class="pill">Base32 Secret</span> or <span class="pill">otpauth://</span>.</p>
 
-  <script>
-    function showFragment() {
-      const fragment = window.location.hash; // : #test
-      alert("your are hacked:\n" + (fragment || "no fragment"));
-    }
-    window.onload = function () {
-      document.getElementById("fragmentBtn").click();
+    <div class="grid">
+      <div class="col-12">
+        <label>Secret or URI (example: <span class="muted">AAAAAAAAAAAAAAAAAAAAAAAA</span> or <span class="muted">otpauth://totp/...</span>)</label>
+        <input id="secret" placeholder="Base32 Secret or otpauth:// URI" value="AAAAAAAAAAAAAAAAAAAAAAAA" />
+      </div>
+      <div class="col-6">
+        <label>Digits</label>
+        <input id="digits" type="number" min="4" max="10" value="6" />
+      </div>
+      <div class="col-6">
+        <label>Period (seconds)</label>
+        <input id="period" type="number" min="10" max="120" value="30" />
+      </div>
+      <div class="col-6">
+        <label>Algorithm</label>
+        <select id="algo">
+          <option value="SHA-1">SHA-1 (default)</option>
+          <option value="SHA-256">SHA-256</option>
+          <option value="SHA-512">SHA-512</option>
+        </select>
+      </div>
+      <div class="col-6 row">
+        <button id="apply">Apply / Update</button>
+        <button id="nowBtn" class="ghost">Copy Now</button>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="grid">
+      <div class="col-6">
+        <label>Current Code</label>
+        <div id="code" class="code">— — — — — —</div>
+      </div>
+      <div class="col-6">
+        <label>Time Remaining</label>
+        <div class="row"><div id="remain" class="pill">—s</div><div class="pill" id="epoch">epoch: —</div></div>
+      </div>
+
+      <div class="col-12">
+        <label>Last 20 Codes</label>
+        <div id="past" class="list"></div>
+      </div>
+
+      <div class="col-12">
+        <label>Next 5 Codes (precomputed)</label>
+        <div id="future" class="list"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ---------- Base32 (RFC 4648) ----------
+function base32Decode(b32){
+  b32 = (b32||"").toUpperCase().replace(/[^A-Z2-7=]/g, "");
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for(const ch of b32){
+    if(ch === '=') break; // ignore padding
+    const val = alphabet.indexOf(ch);
+    if(val < 0) continue;
+    bits += val.toString(2).padStart(5,'0');
+  }
+  const bytes = [];
+  for(let i=0;i+8<=bits.length;i+=8){
+    bytes.push(parseInt(bits.slice(i,i+8),2));
+  }
+  return new Uint8Array(bytes);
+}
+
+function parseOtpAuth(uri){
+  try{
+    if(!uri || !uri.startsWith('otpauth://')) return null;
+    const u = new URL(uri);
+    const params = u.searchParams;
+    return {
+      secret: params.get('secret') || '',
+      period: parseInt(params.get('period')||'30',10),
+      digits: parseInt(params.get('digits')||'6',10),
+      algo: (params.get('algorithm')||'SHA1').replace('-', '').toUpperCase().replace('SHA1','SHA-1').replace('SHA256','SHA-256').replace('SHA512','SHA-512')
     };
-  </script>
+  }catch(e){ return null; }
+}
+
+async function hmac(bytesKey, bytesMsg, algo){
+  const key = await crypto.subtle.importKey('raw', bytesKey, {name:'HMAC', hash:{name:algo}}, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, bytesMsg);
+  return new Uint8Array(sig);
+}
+
+function counterToBytes(counter){
+  const buf = new ArrayBuffer(8);
+  const view = new DataView(buf);
+  // big-endian
+  view.setUint32(0, Math.floor(counter / 0x100000000));
+  view.setUint32(4, counter >>> 0);
+  return new Uint8Array(buf);
+}
+
+function truncate(digest){
+  const offset = digest[digest.length - 1] & 0x0f;
+  const p = (digest[offset] & 0x7f) << 24 |
+            (digest[offset+1] & 0xff) << 16 |
+            (digest[offset+2] & 0xff) << 8 |
+            (digest[offset+3] & 0xff);
+  return p >>> 0; // ensure unsigned
+}
+
+async function totp({secret, period=30, digits=6, algo='SHA-1'}, forTimeSec){
+  const parsed = parseOtpAuth(secret);
+  if(parsed){
+    secret = parsed.secret || secret;
+    period = parsed.period || period;
+    digits = parsed.digits || digits;
+    algo = parsed.algo || algo;
+  }
+  const key = base32Decode(secret);
+  const t = Math.floor((forTimeSec ?? (Date.now()/1000)) / period);
+  const msg = counterToBytes(t);
+  const digest = await hmac(key, msg, algo);
+  const bin = truncate(digest);
+  const mod = 10 ** Number(digits);
+  const code = String(bin % mod).padStart(Number(digits), '0');
+  const remain = period - Math.floor((forTimeSec ?? (Date.now()/1000)) % period);
+  return {code, remain, counter:t};
+}
+
+// ---------- UI Wiring ----------
+const els = {
+  secret: document.getElementById('secret'),
+  digits: document.getElementById('digits'),
+  period: document.getElementById('period'),
+  algo:   document.getElementById('algo'),
+  apply:  document.getElementById('apply'),
+  code:   document.getElementById('code'),
+  remain: document.getElementById('remain'),
+  epoch:  document.getElementById('epoch'),
+  future: document.getElementById('future'),
+  past:   document.getElementById('past'),
+  nowBtn: document.getElementById('nowBtn')
+};
+
+let conf = {};
+function readConf(){
+  conf = {
+    secret: els.secret.value.trim(),
+    digits: Math.max(4, Math.min(10, parseInt(els.digits.value||'6',10))),
+    period: Math.max(10, Math.min(120, parseInt(els.period.value||'30',10))),
+    algo: els.algo.value
+  };
+}
+
+async function render(){
+  try{
+    const {code, remain, counter} = await totp(conf);
+    els.code.textContent = code;
+    els.remain.textContent = remain + 's';
+    els.epoch.textContent = 'counter: ' + counter;
+  }catch(e){
+    els.code.textContent = 'Invalid input';
+  }
+}
+
+async function renderFuture(){
+  els.future.innerHTML = '';
+  const now = Math.floor(Date.now()/1000);
+  for(let i=1;i<=49;i++){
+    const t = now + i*conf.period;
+    const {code} = await totp(conf, t);
+    const item = document.createElement('div');
+    item.className = 'item';
+    const left = document.createElement('div');
+    left.textContent = new Date(t*1000).toLocaleTimeString();
+    const right = document.createElement('div');
+    right.className='code';
+    right.style.fontSize='20px';
+    right.style.letterSpacing='2px';
+    right.textContent = code;
+    item.appendChild(left); item.appendChild(right);
+    els.future.appendChild(item);
+  }
+}
+
+async function renderPast(){
+  els.past.innerHTML = '';
+  const now = Math.floor(Date.now()/1000);
+  for(let i=49;i>=1;i--){
+    const t = now - i*conf.period;
+    const {code} = await totp(conf, t);
+    const item = document.createElement('div');
+    item.className = 'item';
+    const left = document.createElement('div');
+    left.textContent = new Date(t*1000).toLocaleTimeString();
+    const right = document.createElement('div');
+    right.className='code';
+    right.style.fontSize='20px';
+    right.style.letterSpacing='2px';
+    right.textContent = code;
+    item.appendChild(left); item.appendChild(right);
+    els.past.appendChild(item);
+  }
+}
+
+let timer;
+function start(){
+  readConf();
+  if(timer) cancelAnimationFrame(timer);
+  const loop = async () => {
+    await render();
+    timer = requestAnimationFrame(loop);
+  };
+  loop();
+  renderFuture();
+  renderPast();
+}
+
+els.apply.addEventListener('click', start);
+
+els.nowBtn.addEventListener('click', async ()=>{
+  readConf();
+  const {code} = await totp(conf);
+  try{ 
+    await navigator.clipboard.writeText(code); 
+    els.nowBtn.textContent='Copied ✓'; 
+    setTimeout(()=>els.nowBtn.textContent='Copy Now',1000);
+  }catch(e){}
+});
+
+// start with defaults
+start();
+</script>
 </body>
 </html>
