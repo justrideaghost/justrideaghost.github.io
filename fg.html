@@ -2,27 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Show URL Fragment</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Show and Decode Fragment</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .box { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+    h2 { margin-top: 0; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 6px; overflow-x: auto; }
+  </style>
   <script>
-    function showFragment() {
-      const raw = location.hash || "";
-      const frag = raw.startsWith("#") ? raw.slice(1) : raw;
-      const text = frag ? decodeURIComponent(frag) : "No fragment in the URL.";
-      alert(text);
+    function showDecodedFragment() {
+      const hash = location.hash.substring(1); // remove leading #
+      const fragmentEl = document.getElementById("fragment");
+      const decodedEl = document.getElementById("decoded");
+
+      if (!hash) {
+        fragmentEl.textContent = "No fragment in the URL.";
+        decodedEl.textContent = "";
+        return;
+      }
+
+      const params = new URLSearchParams(hash);
+      const encoded = params.get("tgAuthResult");
+
+      if (!encoded) {
+        fragmentEl.textContent = "No tgAuthResult parameter found.";
+        decodedEl.textContent = "";
+        return;
+      }
+
+      fragmentEl.textContent = encoded;
+
+      try {
+        const decoded = atob(encoded); // Base64 decode
+        decodedEl.textContent = decoded;
+      } catch (e) {
+        decodedEl.textContent = "Error decoding Base64: " + e.message;
+      }
     }
 
-    window.addEventListener("DOMContentLoaded", showFragment);
-    window.addEventListener("hashchange", showFragment);
+    window.addEventListener("DOMContentLoaded", showDecodedFragment);
+    window.addEventListener("hashchange", showDecodedFragment);
   </script>
 </head>
 <body>
-  <h1>Show Fragment</h1>
-  <p>Click one of the links below to test:</p>
-  <ul>
-    <li><a href="#hello">#hello</a></li>
-    <li><a href="#greeting">#greeting</a></li>
-    <li><a href="#"># (empty)</a></li>
-  </ul>
+  <div class="box">
+    <h2>This is your fragment:</h2>
+    <pre id="fragment"></pre>
+  </div>
+
+  <div class="box">
+    <h2>And this is decoded:</h2>
+    <pre id="decoded"></pre>
+  </div>
 </body>
 </html>
