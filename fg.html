@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Show URL Fragment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    function showFragment() {
+      const raw = location.hash || "";
+      const frag = raw.startsWith("#") ? raw.slice(1) : raw;
+      const text = frag ? decodeURIComponent(frag) : "No fragment in the URL.";
+      alert(text);
+    }
+
+    window.addEventListener("DOMContentLoaded", showFragment);
+    window.addEventListener("hashchange", showFragment);
+  </script>
+</head>
+<body>
+  <h1>Show Fragment</h1>
+  <p>Click one of the links below to test:</p>
+  <ul>
+    <li><a href="#hello">#hello</a></li>
+    <li><a href="#greeting">#greeting</a></li>
+    <li><a href="#"># (empty)</a></li>
+  </ul>
+</body>
+</html>
