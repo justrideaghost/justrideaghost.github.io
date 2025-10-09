@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Your auth token</title>
+  <title>auth token</title>
   <style>
     body {font-family: Tahoma, Arial, sans-serif; padding: 20px; direction: rtl; background:#f7f7fb}
     .card {background:white;padding:16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06);max-width:900px;margin:0 auto;}
@@ -13,14 +13,19 @@
 </head>
 <body>
   <div class="card">
-    <h2></h2>
+    <h2>Token Finder (from URL / hash / cookie)</h2>
+    <p>This script tries to find the token in the URL or cookies and display it below.</p>
 
-
+    <div>
+      <button id="reloadBtn">Search Again</button>
+      <button id="copyBtn">Copy</button>
+      <button id="toggleMaskBtn">Hide/Show</button>
+    </div>
 
     <h3>Result:</h3>
     <pre id="result">Searching...</pre>
 
-    <p style="color:#666"></p>
+    <p style="color:#666">If the token is not found, it might be under a different name like <code>access_token</code> or <code>auth</code>.</p>
   </div>
 
 <script>
