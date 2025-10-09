@@ -1,138 +1,20 @@
 <!doctype html>
-<html lang="fa">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>token</title>
-  <style>
-    body {font-family: Tahoma, Arial, sans-serif; padding: 20px; direction: rtl; background:#f7f7fb}
-    .card {background:white;padding:16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06);max-width:900px;margin:0 auto;}
-    pre {background:#f1f3f5;padding:12px;border-radius:6px;overflow:auto;white-space:pre-wrap;word-break:break-all}
-    button{margin-right:8px;padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer}
-  </style>
+  <meta charset="utf-8">
+  <title>Your auth token</title>
 </head>
 <body>
-  <div class="card">
-    <h2>Your auth token</h2>
-    <p></p>
-
-
-    <h3>Result:</h3>
-    <pre id="result">Searching...</pre>
-
-    <p style="color:#666">If the token is not found, it might be under a different name like <code>access_token</code> or <code>auth</code>.</p>
-  </div>
+  <h2>Your auth token</h2>
+  <pre id="token"></pre>
 
 <script>
-(function(){
-  const out = document.getElementById('result');
-  const copyBtn = document.getElementById('copyBtn');
-  const reloadBtn = document.getElementById('reloadBtn');
-  const toggleMaskBtn = document.getElementById('toggleMaskBtn');
-  let lastToken = null;
-  let masked = false;
+  // Get the token value from URL parameters
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token') || '';
 
-  // Helper functions
-  function findTokenInString(s) {
-    if (!s) return null;
-    // Look for token=... or "token":"..." or a JWT-like pattern
-    const kvRegex = /(?:token)=([A-Za-z0-9\-_\.]+)/i;
-    const jsonRegex = /"token"\s*:\s*"([^"]+)"/i;
-    const jwtRegex = /\b([A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+)\b/;
-    let m = s.match(kvRegex);
-    if (m) return m[1];
-    m = s.match(jsonRegex);
-    if (m) return m[1];
-    m = s.match(jwtRegex);
-    if (m) return m[1];
-    return null;
-  }
-
-  // Try recursive URL decoding to catch deeply encoded tokens
-  function tryDecodeRecursive(s, rounds=4) {
-    let current = s || '';
-    for (let i=0;i<=rounds;i++){
-      const t = findTokenInString(current);
-      if (t) return t;
-      try {
-        const decoded = decodeURIComponent(current);
-        if (decoded === current) break;
-        current = decoded;
-      } catch(e){
-        break;
-      }
-    }
-    return null;
-  }
-
-  // Main search function
-  function searchForToken() {
-    // Combine multiple sources: href, search, hash, pathname, cookie
-    const parts = [
-      window.location.href || '',
-      window.location.search || '',
-      window.location.hash || '',
-      window.location.pathname || '',
-      document.cookie || ''
-    ].join(' ');
-    // Direct search
-    let token = findTokenInString(parts);
-    if (token) return token;
-    // Try decoding recursively
-    token = tryDecodeRecursive(parts, 6);
-    return token;
-  }
-
-  // Display token or message if not found
-  function displayToken(tok) {
-    lastToken = tok;
-    if (!tok) {
-      out.textContent = 'Token not found.';
-      return;
-    }
-    out.textContent = masked ? maskToken(tok) : tok;
-  }
-
-  // Mask token (for privacy)
-  function maskToken(tok){
-    if (!tok) return '';
-    if (tok.length <= 10) return '•'.repeat(tok.length);
-    return tok.slice(0,8) + '…' + tok.slice(-8);
-  }
-
-  // Button actions
-  reloadBtn.addEventListener('click', () => {
-    const t = searchForToken();
-    displayToken(t);
-  });
-
-  copyBtn.addEventListener('click', () => {
-    if (!lastToken) { alert('No token found to copy.'); return; }
-    navigator.clipboard.writeText(lastToken).then(()=> {
-      alert('Token copied to clipboard.');
-    }, (err) => {
-      alert('Copy failed: ' + err);
-    });
-  });
-
-  toggleMaskBtn.addEventListener('click', () => {
-    masked = !masked;
-    displayToken(lastToken);
-  });
-
-  // Run on page load
-  const initial = searchForToken();
-  displayToken(initial);
-
-  // Optional: debug logging (disable if not needed)
-  // console.log('search parts:', {
-  //   href: window.location.href,
-  //   search: window.location.search,
-  //   hash: window.location.hash,
-  //   pathname: window.location.pathname,
-  //   cookie: document.cookie
-  // });
-})();
+  // Display token or a message if not found
+  document.getElementById('token').textContent = token ? token : 'No token found in URL.';
 </script>
 </body>
 </html>
