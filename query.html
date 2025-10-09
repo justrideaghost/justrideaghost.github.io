@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Query String Viewer</title>
+  <style>
+    body{font-family:Arial, sans-serif; direction:ltr; padding:20px; line-height:1.6}
+    pre {background:#f4f4f4;padding:10px;border-radius:6px;overflow:auto}
+    table{border-collapse:collapse;width:100%;margin-top:10px}
+    th,td{border:1px solid #ddd;padding:8px;text-align:left}
+    th{background:#efefef}
+    .none{color:#888}
+    .btn{display:inline-block;padding:6px 10px;border-radius:5px;background:#2b79ff;color:white;text-decoration:none;margin-top:8px}
+  </style>
+</head>
+<body>
+  <h1>Query String Viewer</h1>
+
+  <p>Current URL:</p>
+  <pre id="currentUrl"></pre>
+
+  <h3>Raw Query (includes "?")</h3>
+  <pre id="rawQuery"></pre>
+  <a class="btn" id="copyRaw">Copy Query</a>
+
+  <h3>Decoded Query</h3>
+  <pre id="decodedQuery"></pre>
+
+  <h3>Query Parameters</h3>
+  <div id="paramsArea"></div>
+
+  <script>
+    const currentUrlEl = document.getElementById('currentUrl');
+    const rawQueryEl = document.getElementById('rawQuery');
+    const decodedQueryEl = document.getElementById('decodedQuery');
+    const paramsArea = document.getElementById('paramsArea');
+    const copyBtn = document.getElementById('copyRaw');
+
+    const url = window.location.href;
+    const rawQuery = window.location.search || '';
+    currentUrlEl.textContent = url;
+    rawQueryEl.textContent = rawQuery || '(no query string)';
+
+    const decoded = rawQuery ? decodeURIComponent(rawQuery) : '';
+    decodedQueryEl.textContent = decoded || '(no query string)';
+
+    if (!rawQuery) {
+      paramsArea.innerHTML = '<p class="none">No parameters found.</p>';
+    } else {
+      const usp = new URLSearchParams(window.location.search);
+      if (![...usp].length) {
+        paramsArea.innerHTML = '<p class="none">No parameters found.</p>';
+      } else {
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        thead.innerHTML = '<tr><th>#</th><th>Key</th><th>Value</th></tr>';
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+
+        let i = 1;
+        const keys = new Set();
+        for (const [k] of usp) keys.add(k);
+
+        keys.forEach(key => {
+          const values = usp.getAll(key);
+          values.forEach(val => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${i++}</td><td>${key}</td><td>${val === '' ? '(empty)' : val}</td>`;
+            tbody.appendChild(tr);
+          });
+        });
+
+        table.appendChild(tbody);
+        paramsArea.appendChild(table);
+      }
+    }
+
+    copyBtn.addEventListener('click', () => {
+      const text = rawQuery || '';
+      if (!text) {
+        alert('No query to copy.');
+        return;
+      }
+      navigator.clipboard?.writeText(text).then(
+        () => alert('Query copied!'),
+        () => alert('Copy failed.')
+      );
+    });
+  </script>
+</body>
+</html>
